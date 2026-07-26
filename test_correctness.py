@@ -59,3 +59,20 @@ recovered, carriers_found, total_carriers = detect(unrelated_source, key, payloa
 matches = sum(1 for a, b in zip(recovered, payload) if a == b)
 print(f"Unwatermarked code — recovered bits: {recovered}, carriers found: {carriers_found}")
 print(f"Bits matching the payload by chance: {matches}/{len(payload)} (expect ~50%, i.e. ~2/4)")
+
+# --- Test C: empty-collection carrier round-trip ---
+collection_source = """
+cache = {}
+buffer = []
+lookup = dict()
+items = list()
+"""
+
+wm_collection = embed(collection_source, key, [0, 1, 1, 0])
+print("\n--- Watermarked (collections) ---")
+print(wm_collection)
+
+recovered_c, found_c, _ = detect(wm_collection, key, payload_len=4)
+print(f"Recovered: {recovered_c}, expected: [0, 1, 1, 0], carriers found: {found_c}")
+assert recovered_c == [0, 1, 1, 0], "Empty-collection carrier failed!"
+print("PASS: empty-collection carriers work.")
