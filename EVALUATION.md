@@ -141,7 +141,69 @@ Two directions, in priority order:
 Neither is built in this version. This document reports the finding, not
 a shipped fix.
 
-## 7. Harness limitations (methodology caveats, not watermark findings)
+## 7. Attempted mitigation: normalization-anomaly detection — negative result
+
+Section 6 above proposed a mitigation from CODEMARK's own design doc: since
+normalization pushes every carrier to one canonical form, a file where
+carrier skew is near 100% should itself be a detectable, flaggable signal
+— independent of any key, since it's measured on raw (un-keyed) form
+counts.
+
+**This was implemented and tested. It does not work as a per-file skew
+check.**
+
+### What was built
+
+`detect_normalization_anomaly()` in `watermark.py`: for each carrier type
+in a file, computes `max(form0, form1) / total` and flags anything at or
+above a 0.9 skew threshold (with a minimum-carrier-count floor to avoid
+flagging on tiny samples).
+
+### What it found
+
+| File | Status | Result |
+|---|---|---|
+| `debug_paraphrase_output.py` | Attacked | `EmptyCollectionCarrier` flagged (skew 1.0) |
+| `debug_refactor_style_output.py` | Attacked | `EmptyCollectionCarrier` flagged (skew 1.0) |
+| `debug_cleanup_output.py` | Attacked | `EmptyCollectionCarrier` flagged (skew 1.0) |
+| `sample_real_2.py` | **Natural, never watermarked or attacked** | `EmptyCollectionCarrier` flagged (skew 1.0) — **identical to the attacked files** |
+| `sample_real_1.py` | **Natural, different project, never touched** | `AugAssignCarrier` flagged (skew 1.0) |
+
+The detector flags the attacked files correctly — and flags natural,
+untouched human-written code at the same rate, with the same skew value.
+On this evidence, **per-file skew cannot distinguish "an LLM normalized
+this code" from "this developer consistently writes `{}` instead of
+`dict()`."** Consistent personal or team coding style produces the exact
+same statistical signature as an adversarial or accidental normalization
+attack. Two natural files were tested; both hit 100% skew on at least one
+carrier type. That's a small sample, but it's enough to falsify "natural
+code has meaningfully lower skew than attacked code" as a working
+assumption for a threshold-based detector.
+
+### Why this is a real finding, not just an implementation gap
+
+The mitigation as described in the design literature implicitly assumes
+natural code has enough stylistic variance that 100%-skew is anomalous.
+That assumption doesn't hold for at least two independent real files
+tested here. This isn't necessarily a dead end — see the roadmap item
+below — but a naive per-file threshold, as specified, is not viable as
+tested, and this evaluation reports that honestly rather than only
+reporting the case where the mitigation appeared to work (it flags attacks
+correctly; the problem is it *also* flags non-attacks equally often, which
+makes it useless as a distinguishing signal).
+
+### Possible path forward (not attempted — scoped out, see roadmap)
+
+A per-file absolute skew threshold doesn't work. A corpus-relative
+approach might: build a baseline skew *distribution* across many natural
+files (5-8 minimum, ideally dozens, from varied authors/projects) and
+flag a file only if its skew is an outlier *relative to that distribution*
+rather than against a fixed constant. This wasn't attempted here — it
+requires a natural-code corpus this evaluation doesn't have, and building
+one is a data-collection task on its own, not a quick follow-up. Listed
+as a roadmap item, not claimed as a solution.
+
+## 8. Harness limitations (methodology caveats, not watermark findings)
 
 - `add_comments` failed on invalid Python output due to `max_tokens=4000`
   truncation in the harness, not a watermarking result — needs a token
@@ -155,12 +217,17 @@ a shipped fix.
 - Single file, single model (`claude-sonnet-4-6`), single key. No
   statistical claim (e.g. a p-value on survival rate) is made here — this
   is a documented case study, not a benchmark.
+- The normalization-anomaly detector (§7) was tested against only 2
+  natural files — too small to confirm the negative result generalizes,
+  though it's enough to falsify the naive per-file-threshold approach as
+  currently specified.
 
-## 8. Reproduce
+## 9. Reproduce
 
 ```bash
 python llm_attacks.py
 python test_normalization_hypothesis.py
+python test_normalization_detector.py
 ```
 
 Requires `ANTHROPIC_API_KEY` set to a valid Anthropic key (starts

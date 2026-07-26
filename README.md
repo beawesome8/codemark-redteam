@@ -137,6 +137,7 @@ python3 watermark.py verify --key "..." --vendor 11 --model 7 --session 13 out.p
 3. Expand carrier families (ternary/if-else, chained comparisons, f-string/format, comprehension/loop) — each one raises normalization cost for an attacker.
 4. Publish a hash commitment to the key (provable existence at time T without revealing it) and scope the ZK circuit for "I hold the key that explains this match rate."
 5. Run the full attack suite across a real corpus (~1,000 files of AI-generated Python) and publish that dataset — the corpus, not the algorithm, is the actual moat.
+6. Build a corpus-relative normalization-anomaly detector. A per-file fixed skew threshold was implemented and tested — it does not work (natural, never-touched code hits the same 100% skew as attacked code; see [`EVALUATION.md` §7](./EVALUATION.md#7-attempted-mitigation-normalization-anomaly-detection--negative-result)). A corpus-relative version (flag outliers against a baseline distribution across many natural files, not against a fixed constant) is untried and requires a natural-code corpus this project doesn't yet have — real follow-up work, not a quick fix.
 
 ## 10. License / status
 

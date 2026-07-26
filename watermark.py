@@ -248,3 +248,39 @@ def carrier_form_summary(source: str) -> dict:
         summary.setdefault(type_name, [0, 0])
         summary[type_name][c.state()] += 1
     return summary
+
+def detect_normalization_anomaly(source: str, min_carriers_per_type: int = 3,
+                                   skew_threshold: float = 0.9) -> dict:
+    """
+    Flags carrier types whose raw (un-keyed) form distribution is suspiciously
+    skewed toward one pole -- independent of any key, this is a signal that
+    the code has been normalized/scrubbed rather than genuinely watermarked
+    or naturally written.
+
+    Only carrier types with >= min_carriers_per_type sites are evaluated --
+    too few sites can't distinguish "small sample" from "genuine anomaly."
+
+    Returns a dict: {carrier_type_name: {"form0": n, "form1": n, "skew": float, "flagged": bool}}
+    """
+    tree = ast.parse(source)
+    carriers = find_carriers(tree)
+
+    by_type = {}
+    for c in carriers:
+        type_name = type(c).__name__
+        by_type.setdefault(type_name, [0, 0])
+        by_type[type_name][c.state()] += 1
+
+    report = {}
+    for type_name, (form0, form1) in by_type.items():
+        total = form0 + form1
+        if total < min_carriers_per_type:
+            report[type_name] = {"form0": form0, "form1": form1, "skew": None, "flagged": False,
+                                  "note": f"only {total} carriers, below threshold of {min_carriers_per_type}"}
+            continue
+        skew = max(form0, form1) / total
+        report[type_name] = {
+            "form0": form0, "form1": form1, "skew": round(skew, 3),
+            "flagged": skew >= skew_threshold,
+        }
+    return report
