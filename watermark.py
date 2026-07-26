@@ -237,3 +237,14 @@ def detect(source: str, key: str, payload_len: int) -> tuple[list[int], int, int
 
     recovered = [1 if v1 >= v0 else 0 for v0, v1 in votes]
     return recovered, len(carriers), len(carriers)
+
+def carrier_form_summary(source: str) -> dict:
+    """Count how many carriers sit in 'form 0' vs 'form 1', by type."""
+    tree = ast.parse(source)
+    carriers = find_carriers(tree)
+    summary = {}
+    for c in carriers:
+        type_name = type(c).__name__
+        summary.setdefault(type_name, [0, 0])
+        summary[type_name][c.state()] += 1
+    return summary
