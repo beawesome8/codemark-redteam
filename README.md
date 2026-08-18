@@ -141,6 +141,6 @@ python3 watermark.py verify --key "..." --vendor 11 --model 7 --session 13 out.p
 
 ## 10. License / status
 
-No license file yet — add one before accepting external contributions or
-stars matter less than getting this right. Treat as research-grade until
-§9 items 1–2 are done.
+MIT License
+
+please fee free to contribute, raise issues or request PR's
